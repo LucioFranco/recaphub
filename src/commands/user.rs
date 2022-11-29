@@ -2,6 +2,7 @@ use crate::IssueExt;
 use chrono::{DateTime, Duration, Utc};
 use clap::Args;
 use color_eyre::eyre;
+use csv::Writer;
 use octocrab::models::issues::Issue;
 use std::future::Future;
 use tokio::task::JoinHandle;
@@ -54,6 +55,10 @@ impl User {
             current_page = octocrab.get_page(&page.next).await?;
         }
 
+        let mut csv = Writer::from_path("target/user.csv")?;
+
+        csv.write_record(&["repo", "title", "url"])?;
+
         for handle in comment_summaries {
             let (issue, comments) = handle.await??;
             if comments.is_empty() {
@@ -63,7 +68,15 @@ impl User {
             let title = &issue.title;
             let repo = issue.repo();
             let owner = issue.owner();
+
             println!("- {owner}/{repo}: {title}");
+
+            csv.write_record(&[
+                format!("{owner}/{repo}").as_str(),
+                title,
+                issue.html_url.as_str(),
+            ])?;
+
             for comment in comments {
                 println!("  - {comment}");
             }
